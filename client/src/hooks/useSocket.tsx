@@ -18,10 +18,7 @@ export const useSocket = () => {
       newSocket.onclose = (event) => {
         console.log(`WebSocket closed: ${event.reason}`);
   
-        if (!event.wasClean) {
-          console.log("Reconnecting WebSocket...");
-          setTimeout(connect, 1000);
-        }
+        
       };
 
       setSocket(newSocket);

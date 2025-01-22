@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import "tailwindcss/tailwind.css";
 import { useSocket } from "./hooks/useSocket";
 
 function App() {
@@ -11,70 +10,84 @@ function App() {
   const dataChannel = useRef<RTCDataChannel | null>(null);
 
   useEffect(() => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-    peerConnection.current = pc;
+    const setupPeerConnection = async () => {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      peerConnection.current = pc;
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket?.send(JSON.stringify({ type: "candidate", candidate: event.candidate }));
-      }
-    };
-
-    pc.ondatachannel = (event) => {
-      const dc = event.channel;
-      dataChannel.current = dc;
-
-      dc.onopen = () => console.log("Data channel is open");
-      dc.onmessage = (event) => {
-        setMessages((prevMessages) => [...prevMessages, `Peer: ${event.data}`]);
-      };
-    };
-
-    if (socket) {
-      socket.onmessage = async (event: any) => {
-        const data = JSON.parse(event.data);
-        console.log(data);
-
-        if (data.type === "offer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.send(JSON.stringify({ type: "answer", answer }));
-        } else if (data.type === "answer") {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } else if (data.type === "candidate" && data.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket?.send(JSON.stringify({ type: "candidate", candidate: event.candidate }));
         }
       };
 
-      // Assume the current client is the caller
-      const dc = pc.createDataChannel("chat");
-      dataChannel.current = dc;
+      pc.ondatachannel = (event) => {
+        const dc = event.channel;
+        dataChannel.current = dc;
 
-      dc.onopen = () => console.log("Data channel is open");
-      dc.onmessage = (event) => {
-        setMessages((prevMessages) => [...prevMessages, `Peer: ${event.data}`]);
+        dc.onopen = () => console.log("Data channel is open");
+        dc.onmessage = (event) => {
+          setMessages((prevMessages) => [...prevMessages, `Peer: ${event.data}`]);
+        };
       };
 
-      pc.createOffer().then((offer) => {
-        pc.setLocalDescription(offer);
-        socket.send(JSON.stringify({ type: "offer", offer }));
-      });
-    }
+      if (socket) {
+        socket.onmessage = async (event: any) => {
+          const data = JSON.parse(event.data);
+          console.log(data);
+
+          try {
+            if (data.type === "offer") {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              socket.send(JSON.stringify({ type: "answer", answer }));
+            } else if (data.type === "answer") {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (data.type === "candidate" && data.candidate) {
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+          } catch (error) {
+            console.error("Error handling socket message:", error);
+          }
+        };
+
+        const dc = pc.createDataChannel("chat");
+        dataChannel.current = dc;
+
+        dc.onopen = () => console.log("Data channel is open");
+        dc.onmessage = (event) => {
+          setMessages((prevMessages) => [...prevMessages, `Peer: ${event.data}`]);
+        };
+
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.send(JSON.stringify({ type: "offer", offer }));
+        } catch (error) {
+          console.error("Error creating offer:", error);
+        }
+      }
+    };
+
+    setupPeerConnection();
 
     return () => {
-      pc.close();
+      peerConnection.current?.close();
       socket?.close();
     };
   }, [socket]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (dataChannel.current?.readyState === "open" && message.trim() !== "") {
-      dataChannel.current.send(message);
-      setMessages((prevMessages) => [...prevMessages, `You: ${message}`]);
-      setMessage("");
+      try {
+        dataChannel.current.send(message);
+        setMessages((prevMessages) => [...prevMessages, `You: ${message}`]);
+        setMessage("");
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
     }
   };
 
