@@ -1,17 +1,19 @@
 import { Server, WebSocket } from 'ws';
 
-const server = new Server({ port: 8080 });
+const wss: Server = new Server({ port: 8080 });
 
-server.on("connection", (socket) => {
+wss.on("connection", (ws: WebSocket) => {
     console.log("New connection");
-    socket.on("message", (message) => {
-        const messageString = message.toString();
-        server.clients.forEach((client) => {
-            if (client !== socket && client.readyState === WebSocket.OPEN) {
-                client.send(messageString);
+    ws.on("message", (data: any) => {
+        const message = JSON.parse(data);
+        console.log("Message: ", JSON.parse(data.toString()));
+        // console.log("Message: ", message);
+        wss.clients.forEach((client: WebSocket) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(message));
             }
         });
     });
-})
+});
 
 console.log("Signaling server running on ws://localhost:8080");
