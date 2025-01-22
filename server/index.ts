@@ -2,6 +2,7 @@ import { Server, WebSocket } from 'ws';
 
 const wss: Server = new Server({ port: 8080 });
 
+
 wss.on("connection", (ws: WebSocket) => {
     console.log("New connection");
     ws.on("message", (data: any) => {

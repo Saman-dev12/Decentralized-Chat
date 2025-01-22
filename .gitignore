@@ -3,6 +3,7 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+
 # React
 build/
 .DS_Store
@@ -11,3 +12,5 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+
+dist/
